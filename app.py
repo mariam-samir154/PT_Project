@@ -8,6 +8,8 @@ import nltk
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.experimental import enable_iterative_imputer
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.impute import IterativeImputer
+
 
 warnings.filterwarnings('ignore')
 nltk.download('vader_lexicon', quiet=True)
@@ -21,6 +23,9 @@ st.set_page_config(
 st.title("🎬 Movie Popularity Prediction System")
 st.write("Upload a CSV file and evaluate all trained models.")
 
+
+st.markdown("---")
+st.header("🏷️ Regression ")
 
 @st.cache_resource
 def load_models():
@@ -329,7 +334,7 @@ if uploaded_file is not None:
 
         results_df = pd.DataFrame(results)
 
-        st.subheader("📊 Model Results")
+        st.subheader("📊 Regression Results")
         st.dataframe(results_df)
 
         
@@ -352,7 +357,7 @@ if uploaded_file is not None:
 # ══════════════════════════════════════════════════════
 
 st.markdown("---")
-st.header("🏷️ Classification — Milestone 2")
+st.header("🏷️ Classification ")
 
 cls_uploaded_file = st.file_uploader(
     "Upload Classification CSV File",
@@ -360,7 +365,7 @@ cls_uploaded_file = st.file_uploader(
     key="cls_upload"
 )
 
-@st.cache_resource
+@st.cache_data
 def load_cls_models():
     return {
         "imputer":           pickle.load(open("cls_imputer.pkl",           "rb")),
@@ -393,8 +398,45 @@ def preprocess_classification(df):
     top5_countries = cls_models["top5_countries"]
 
     label_map = cls_models["label_map"]
+    # normalize mapping keys
+
+
+
+     # reverse if saved backwards
+    if isinstance(list(label_map.keys())[0], int):
+      label_map = {v: k for k, v in label_map.items()}
+
+
+    label_map = {
+        str(k).strip().lower(): v
+        for k, v in label_map.items()
+    }
+
     if 'popularityLevel' in df.columns:
+
+        df['popularityLevel'] = (
+           df['popularityLevel']
+           .astype(str)
+           .str.strip()
+           .str.lower()
+        )
+
         y_test = df['popularityLevel'].map(label_map)
+    
+        if y_test.isna().any():
+
+            bad_labels = (
+              df.loc[y_test.isna(), 'popularityLevel']
+              .unique()
+               .tolist()
+            )
+
+            raise ValueError(
+                f"Unknown popularityLevel labels found: {bad_labels}"
+            )
+
+
+       
     elif 'target' in df.columns:
         y_test = df['target']
     else:
